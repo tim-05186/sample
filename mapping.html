@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+
+     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/> 
+
+     <style> 
+     #map { height: 500px; 
+            };
+
+    #reset {
+        background-color: darkcyan;
+    };
+    </style> 
+</head>
+
+<body>
+
+   <div id="map"></div>
+
+     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+  
+    <script> 
+
+    var map = L.map('map').setView([43.6532, 79.3832], 13);
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    minZoom : 16,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map);
+
+    function getGPS(callback) {
+        navigator.geolocation.watchPosition((position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude; 
+        const acc = position.coords.accuracy;
+        const head = position.coords.heading;
+        callback(lat,lon,acc, head)
+
+        }
+    )}  
+
+    window.trackLine = false;
+
+
+
+    const trackPosition = L.control({position : "topright"}) 
+
+
+    trackPosition.onAdd = function (map) {
+        const trackLine = L.DomUtil.create('button')
+        trackLine.innerHTML = '길 추적 ON'
+        trackLine.style.backgroundColor = 'blue'
+        trackLine.style.color = 'white'
+            
+        trackLine.onclick = function() {
+            if (!window.trackLine) {
+                trackLine.innerHTML = "길 추적 OFF"
+                trackLine.style.backgroundColor = 'red'
+                trackLine.style.color = 'white'
+                window.trackLine = true
+                setTimeout(() => {
+                    alert ("추적을 시작하겠습니다")
+                },300)
+            } else {
+                trackLine.innerHTML = "길 추적 ON"
+                trackLine.style.backgroundColor = 'blue'
+                trackLine.style.color = "white"
+                window.trackLine = false
+
+                if (window.pathlines) {
+                    map.removeLayer(window.pathlines)
+                    window.pathlines = null
+                }
+                setTimeout(() => [
+                    alert('추적을 그만하겠습니다')
+                ],300)
+
+            }
+        }
+    
+        return trackLine
+     }
+         
+
+
+
+
+    trackPosition.addTo(map)
+
+    
+    let myTrail = []
+    window.pathlines; 
+    let totalDistance = 0
+    window.lock = false
+    window.trackLine = false 
+    
+
+    getGPS((lat, lon, acc, head) => {
+    
+        const arrowIcon = L.icon ({
+            iconUrl : "arrow.svg",
+            iconSize : [40, 40],
+            iconAnchor : [20, 20]
+        })
+
+        if (!window.marker) {
+            window.marker = L.marker([lat,lon], {icon : arrowIcon}).addTo(map)
+            map.setView([lat,lon], 20)
+            
+        } else {
+            window.marker.setLatLng([lat,lon])
+        } 
+        if (head !== null) {
+            window.marker._icon.style.transformOrigin = `center center`
+            window.marker._icon.style.transform += `rotate (${head}deg)`;
+        
+            }
+
+
+        if (myTrail.length > 1) {
+            
+            let myTrails = myTrail[myTrail.length -1]
+            
+            let diff = Math.abs(myTrails[0] - lat) + Math.abs(myTrails[1] - lon) 
+
+            if (diff < 0.00003) 
+            return;
+            
+            const point1 = L.latLng(myTrails[0], myTrails[1])
+            const point2 = L.latLng(lat,lon)
+            const distanceDiff = point1.distanceTo(point2)
+            totalDistance = totalDistance + distanceDiff
+            console.log('당신 걸은 총 거리는' + totalDistance) 
+        
+        } 
+
+            document.getElementById('TotalDistance').onclick = function () { 
+            alert("총 거리는" + totalDistance.toFixed(4)+'m 입니다')   
+ 
+        } 
+
+
+        myTrail.push([lat,lon])
+        marker.setLatLng([lat, lon]);
+        map.panTo([lat, lon]);
+        marker.setTooltipContent(`위도: ${lat.toFixed(4)}, 경도 ${lon.toFixed(4)}`)
+        console.log(myTrail)
+
+
+
+         if (window.trackLine == true) {
+          
+            if (myTrail.length > 1) {
+                if (!window.pathlines) { 
+                    window.pathlines = L.polyline(myTrail, {
+                        color : 'blue',
+                        weight: 5
+                    }).addTo(map);
+
+            } else { 
+                window.pathlines.addLatLng([lat,lon])
+            }
+        } 
+        } 
+
+
+
+       
+
+        if (!window.circle) {
+            window.circle = L.circle ([lat,lon], {
+                color: 'blue',
+                radius: acc
+            }).addTo(map);
+        } else { 
+            window.circle.setLatLng([lat, lon])
+            window.circle.setRadius(acc);
+        }
+
+    
+    
+
+
+    if (!window.lock) {
+    var position = L.control({position:"bottomleft"})
+        
+    position.onAdd = function(map) {
+        var Img = L.DomUtil.create('img');
+        Img.src = "https://cdn-icons-png.flaticon.com/512/854/854878.png";
+        Img.style.width = "40px"
+        Img.style.height = "50px"
+        Img.style.cursor = "pointer"
+
+        Img.onmouseover = function() {
+            Img.style.transform = "scale(1.2)"
+            Img.style.opacity = "0.6"
+        }
+
+        Img.onmouseout = function () {
+            Img.style.transform = "scale(1)"
+            Img.style.opacity = "1"
+
+
+        return Img
+    
+
+    } 
+    window.lock = true
+    position.addTo(map)     
+}
+    console.log(myTrail)
+
+    document.getElementById('myPath').onclick = function() {
+        marker.setLatLng([lat, lon])
+        map.setView([lat,lon],18)
+        
+        
+    }
+  
+
+    document.getElementById('reset').onclick = function () {
+        myTrail = [];
+        totalDistance = 0;
+
+        if (window.pathlines) {
+            map.removeLayer(window.pathlines)
+            window.pathlines  = null;
+        }
+    }
+}
+    document.getElementById('distance').onclick = function() {
+        alert('오차범위는' + acc.toFixed(2)+'m 입니다')
+     }
+
+
+
+    const status =  document.getElementById('status');
+    
+    status.innerHTML = 
+    `위도: ${lat.toFixed(5)} | 경도: ${lon.toFixed(5)} | 정확도: ${acc.toFixed(1)}m  | 총 거리: ${totalDistance.toFixed(2)}`;
+     
+    status.style.color = 'blue'
+    status.style.fontSize = '20px'  
+    status.style.fontWeight = 'bold'
+    
+     
+     
+        
+    })   
+
+   
+
+
+
+</script> 
+
+<button id = "reset"> 길을 초기화하기 </button>
+<button id = "myPath"> 나의 위치 </button>
+<button id = "TotalDistance"> 총 거리 계산하기</button>
+<button id = "distance"> 오차범위 계산 </button> 
+<button id = "switch"> 거리 계산켜기 끄기 </button>
+<div id = "status"> </div>
+</body>
+
+</html>
